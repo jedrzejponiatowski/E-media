@@ -1,6 +1,6 @@
 import critical
 import ancillary
-import transform
+#import transform
 
 import cv2 as cv
 import numpy as np
@@ -41,6 +41,12 @@ def main():
                 case b'IEND':
                     critical.read_IEND(file_png, out_file)
                     iend_read = True
+                case b'tIME':
+                    ancillary.read_tIME(file_png, out_file)
+                case b'gAMA':
+                    ancillary.read_gAMA(file_png, out_file)
+                case b'hIST':
+                    ancillary.read_hIST(file_png, out_file, length)
                 
                 case _:
                     if block_type in anon_chunks:
@@ -50,7 +56,7 @@ def main():
             # Odczytaj sumę kontrolną bloku
             crc = file_png.read(4)
             out_file.write(crc)
-            print("Suma kontrolna {}".format(crc.hex()))
+            print("Suma kontrolna: {}".format(crc.hex()))
             print(20*"-")
     
     img_gray = cv.imread('large.png', cv.IMREAD_GRAYSCALE)

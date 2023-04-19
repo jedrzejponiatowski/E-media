@@ -33,7 +33,7 @@ def read_IHDR(file_png, out_file):
     out_file.write(buffer)
     print("Interlace method: " + str(int.from_bytes(buffer, byteorder='big')))
 
-    # print(20*"-")
+    #print(20*"-")
 
 def read_PLTE(file_png, out_file, length):
     print("Block type: PLTE")
@@ -52,7 +52,7 @@ def read_PLTE(file_png, out_file, length):
 
     print("entries: " + str(i+1))
     print("written to: {}".format(plte_writefile))
-    # print(20*'-')
+    #print(20*'-')
 
     # zapisz palete do oddzelnego pliku - za duze zeby wyswietlac
     
@@ -66,4 +66,4 @@ def read_IDAT(file_png, out_file, length):
     # print(20*"-")
 
 def read_IEND(file_png, out_file):
-    print("IEND")
+    print("Block type: IEND")
