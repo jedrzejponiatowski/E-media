@@ -46,7 +46,13 @@ def main():
                 case b'gAMA':
                     ancillary.read_gAMA(file_png, out_file)
                 case b'hIST':
-                    ancillary.read_hIST(file_png, out_file, length)
+                    ancillary.read_hIST2(file_png, out_file, length)
+                case b'tEXt':
+                    ancillary.read_tEXt(file_png, out_file, length)
+                case b'zTXt':
+                    ancillary.read_zTXt(file_png, out_file, length)
+                case b'iTXt':
+                    ancillary.read_iTXt(file_png, out_file, length)
                 
                 case _:
                     if block_type in anon_chunks:
