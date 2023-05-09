@@ -133,6 +133,31 @@ def read_iTXt(file_png, out_file, length):
     print("Text: " + text)
 
 
+def read_tRNS(file_png, out_file, length, color_type):
+    print("Block type: tRNS")
+    buffer = []
+    match color_type:
+        case 0: # grayscale
+            buffer = file_png.read(2)
+            out_file.write(buffer)
+            print("Transparent value (grayscale): {}".format(int.from_bytes(buffer, byteorder="big")))
+        case 2: # truecolor
+            buffer = file_png.read(6)
+            out_file.write(buffer)
+            # each color value is contained in 2 bytes, 'H' in the format string represents short int
+            # which is written in 2 bytes 
+            r, g, b = struct.unpack("!HHH", buffer)
+            print("Transparent value (truecolor): r{} g{} b{}".format(r, g, b))
+        case 3: # index-color
+            with open("palette.txt", "r") as palette, open("tRNSmap.txt", "w") as trns_map:
+                for i in range(length):
+                    bt = file_png.read(1)
+                    out_file.write(bt)
+                    plte_value = palette.readline()
+                    trns_map.write("{} - {}".format(int.from_bytes(bt, byteorder="big"), plte_value))
+        case 4, 6: # greyscale with alpha, truecolour with alpha
+            print("Transparency is already included in this color type.")
+
 
 
 #you cannot replace bytes in-file. you need to create a temp file fo that

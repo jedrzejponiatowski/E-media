@@ -10,8 +10,11 @@ def main():
 
     # Chunks to anonimize
     anon_chunks = [b'dSIG', b'eXIf', b'iTXt', b'tEXt', b'tIME', b'zTXt']
+    width = 0
+    height = 0
+    color_type = 0
     # Open png in byte read mode (also the output file)
-    with open('moded.png', 'rb') as file_png, open('out.png', 'wb') as out_file:
+    with open('photopead.png', 'rb') as file_png, open('out.png', 'wb') as out_file:
         
         # Wczytaj pierwsze 8 bajtów nagłówka
         header = file_png.read(8)
@@ -33,7 +36,7 @@ def main():
 
             match block_type:
                 case b'IHDR':
-                    critical.read_IHDR(file_png, out_file)
+                    width, height, color_type = critical.read_IHDR(file_png, out_file)
                 case b'PLTE':
                     critical.read_PLTE(file_png, out_file, length)
                 case b'IDAT':
@@ -53,6 +56,8 @@ def main():
                     ancillary.read_zTXt(file_png, out_file, length)
                 case b'iTXt':
                     ancillary.read_iTXt(file_png, out_file, length)
+                case b'tRNS':
+                    ancillary.read_tRNS(file_png, out_file, length, color_type)
                 
                 case _:
                     if block_type in anon_chunks:
@@ -62,23 +67,23 @@ def main():
             # Odczytaj sumę kontrolną bloku
             crc = file_png.read(4)
             out_file.write(crc)
-            print("Suma kontrolna: {}".format(crc.hex()))
+            print("Control sum: {}".format(crc.hex()))
             print(20*"-")
     
-    img_gray = cv.imread('large.png', cv.IMREAD_GRAYSCALE)
-    img = cv.imread("large.png", cv.IMREAD_UNCHANGED)
+    # img_gray = cv.imread('large.png', cv.IMREAD_GRAYSCALE)
+    # img = cv.imread("large.png", cv.IMREAD_UNCHANGED)
 
-    dft = cv.dft(np.float32(img_gray),flags = cv.DFT_COMPLEX_OUTPUT)
-    dft_shift = np.fft.fftshift(dft)
-    magnitude_spectrum = 20*np.log(cv.magnitude(dft_shift[:,:,0],dft_shift[:,:,1]))
+    # dft = cv.dft(np.float32(img_gray),flags = cv.DFT_COMPLEX_OUTPUT)
+    # dft_shift = np.fft.fftshift(dft)
+    # magnitude_spectrum = 20*np.log(cv.magnitude(dft_shift[:,:,0],dft_shift[:,:,1]))
 
-    cv.imshow("image", img)
+    # cv.imshow("image", img)
 
-    plt.subplot(111),plt.imshow(magnitude_spectrum, cmap = 'gray')
-    plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
-    plt.show()
+    # plt.subplot(111),plt.imshow(magnitude_spectrum, cmap = 'gray')
+    # plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    # plt.show()
     
-    cv.waitKey(0)
+    # cv.waitKey(0)
     
 
 if __name__ == "__main__":

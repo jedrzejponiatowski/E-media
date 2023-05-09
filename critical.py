@@ -2,16 +2,21 @@ import struct
 
 def read_IHDR(file_png, out_file):
     buffer = []
+    width = 0
+    height = 0
+    color_type = 0
 
-    print("Block Type: IHDR")
+    print("Block type: IHDR")
 
     buffer = file_png.read(4)
     out_file.write(buffer)
-    print("Width: " + str(int.from_bytes(buffer, byteorder='big')))
+    width = int.from_bytes(buffer, byteorder='big')
+    print("Width: " + str(width))
 
     buffer = file_png.read(4)
     out_file.write(buffer)
-    print("Height: " + str(int.from_bytes(buffer, byteorder='big')))
+    height = int.from_bytes(buffer, byteorder='big')
+    print("Height: " + str(height))
 
     buffer = file_png.read(1)
     out_file.write(buffer)
@@ -19,7 +24,8 @@ def read_IHDR(file_png, out_file):
 
     buffer = file_png.read(1)
     out_file.write(buffer)
-    print("Color type: " + str(int.from_bytes(buffer, byteorder='big')))
+    color_type = int.from_bytes(buffer, byteorder='big')
+    print("Color type: " + str(color_type))
 
     buffer = file_png.read(1)
     out_file.write(buffer)
@@ -33,6 +39,8 @@ def read_IHDR(file_png, out_file):
     out_file.write(buffer)
     print("Interlace method: " + str(int.from_bytes(buffer, byteorder='big')))
 
+    return width, height, color_type
+
     #print(20*"-")
 
 def read_PLTE(file_png, out_file, length):
@@ -42,7 +50,7 @@ def read_PLTE(file_png, out_file, length):
 
     print("PLTE block length: " + str(length) )
 
-    plte_writefile = "palette"
+    plte_writefile = "palette.txt"
     with open(plte_writefile, 'w') as file:
         for i in range(length // 3):
             buffer = file_png.read(3)
