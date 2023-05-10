@@ -8,8 +8,9 @@ from os.path import exists
 
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
+    # f - keep only critical chunks
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ai:o:s")
+        opts, args = getopt.getopt(sys.argv[1:], "afi:o:s")
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -73,10 +74,7 @@ def main():
                 # a previously anonymized block will not be read because it was first read in the if clause
                 # and the elif clause will then not be checked, since this is how if-elif works
                 if block_type in anon_chunks and anonymize:
-                    if block_type == b'tEXt':
-                        ancillary.anon_tEXt(file_png, out_file, length, block_type.decode("utf-8"))
-                    else:
-                        ancillary.anon(file_png, out_file, length, block_type.decode("utf-8"))
+                    ancillary.anon(file_png, out_file, length, block_type.decode("utf-8"))
 
                 elif (not anonymize) or (anonymize and block_type not in anon_chunks):
                     match block_type:
@@ -85,6 +83,11 @@ def main():
                         case b'PLTE':
                             critical.read_PLTE(file_png, out_file, length)
                         case b'IDAT':
+                            # instead of this if-else, add IDAT to the list of anonymisable chunks
+                            # and update the anon functione
+                            # if anonymize:
+                            #     critical.read_anon_IDAT(file_png, out_file, length)
+                            # else:
                             critical.read_IDAT(file_png, out_file, length)
                         case b'IEND':
                             critical.read_IEND(file_png, out_file)
@@ -116,7 +119,7 @@ def main():
         print("File does not exist: {}".format(err.filename))
     
     if show:
-            display.display_image(input_filename)
+        display.display_image(input_filename)
 
 def usage():
     print(10*"-" + "USAGE" + 10*"-")

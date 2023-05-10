@@ -4,23 +4,23 @@ import zlib
 
 def anon(file_png, out_file, length, chunk_type):
     print("Block type: {}".format(chunk_type))
-    print("ANONYMIZED")
-    file_png.read(length) # pretty much just moves the cursor to the end of chunk contetn
-    out_file.write(length*'#'.encode("utf-8"))
-
-# in order to read an anonymized tEXt chunk, the anonymization must perserve
-# its null separator byte - if we just cleared the whole chunk, the parser would not know how to read
-# it since it would be missing the null separator chunk
-def anon_tEXt(file_png, out_file, length, chunk_type):
-    print("Block type: {}".format(chunk_type))
-    print("ANONYMIZED")
-    data = file_png.read(length)
-    # out_file.write(data)
     
-    null_byte_pos = data.index(b'\x00')
-    out_file.write(null_byte_pos*"#".encode("utf-8"))
-    out_file.write(b'\x00')
-    out_file.write( (length-(null_byte_pos+1))*"#".encode("utf-8") )
+    match chunk_type:
+        # in order to read an anonymized tEXt chunk, the anonymization must perserve
+        # its null separator byte - if we just cleared the whole chunk, the parser would not know how to read
+        # it since it would be missing the null separator chunk. There are multiple chunks that require a null
+        # terminator byte to work, so beware
+        case 'tEXt':
+            data = file_png.read(length)            
+            null_byte_pos = data.index(b'\x00')
+            out_file.write(null_byte_pos*"#".encode("utf-8"))
+            out_file.write(b'\x00')
+            out_file.write( (length-(null_byte_pos+1))*"#".encode("utf-8") )
+        case _:
+            file_png.read(length) # pretty much just moves the cursor to the end of chunk contetn
+            out_file.write(length*'#'.encode("utf-8"))
+        
+    print("ANONYMIZED")
 
 
 def ignore(file_png, out_file, length, block_type):
@@ -36,7 +36,7 @@ def read_tIME(file_png, out_file):
     out_file.write(buffer)
     year, month, day, hour, minute, second = struct.unpack('!HBBBBB', buffer)
     print("Last modified: {}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(year, month, day, hour, minute, second))
-
+    
 
 def read_gAMA(file_png, out_file):
     print("Block type: gAMA")
@@ -179,6 +179,7 @@ def read_tRNS(file_png, out_file, length, color_type):
                     plte_value = palette.readline()
                     trns_map.write("{} {}".format(int.from_bytes(alpha, byteorder="big"), plte_value))
             print("Index-color color type, transparency map printed to {}".format(trans_map_name))
+            print("Data format: alpha red green blue")
         case 4, 6: # greyscale with alpha, truecolour with alpha
             print("Transparency is already included in this color type.")
 
