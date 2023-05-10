@@ -3,6 +3,8 @@ testing.py
 added_chunks.png
 out.png
 palette
+palette.txt
 testtext.txt
 png_large.png
 /__pycache__
+tRNSmap.txt

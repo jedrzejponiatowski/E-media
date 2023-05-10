@@ -4,9 +4,30 @@ import zlib
 
 def anon(file_png, out_file, length, chunk_type):
     print("Block type: {}".format(chunk_type))
-    print("Starting anonymization")
+    print("ANONYMIZED")
     file_png.read(length) # pretty much just moves the cursor to the end of chunk contetn
-    out_file.write(length*'0'.encode("utf-8"))
+    out_file.write(length*'#'.encode("utf-8"))
+
+# in order to read an anonymized tEXt chunk, the anonymization must perserve
+# its null separator byte - if we just cleared the whole chunk, the parser would not know how to read
+# it since it would be missing the null separator chunk
+def anon_tEXt(file_png, out_file, length, chunk_type):
+    print("Block type: {}".format(chunk_type))
+    print("ANONYMIZED")
+    data = file_png.read(length)
+    # out_file.write(data)
+    
+    null_byte_pos = data.index(b'\x00')
+    out_file.write(null_byte_pos*"#".encode("utf-8"))
+    out_file.write(b'\x00')
+    out_file.write( (length-(null_byte_pos+1))*"#".encode("utf-8") )
+
+
+def ignore(file_png, out_file, length, block_type):
+    print("Block type: {}".format(block_type))
+    print("IGNORING")
+    buffer = file_png.read(length)
+    out_file.write(buffer)
 
 
 def read_tIME(file_png, out_file):
@@ -49,7 +70,8 @@ def read_hIST2(file_png, out_file, length):
     data = file_png.read(length)
     out_file.write(data)
 
-    num_entries = len(data) // 2  # Each entry is a 2-byte integer
+    # num_entries = length // 2
+    num_entries = len(data) // 2  # Each entry is a 2-byte unsigned integer
     entries = []
     for i in range(num_entries):
         entry = int.from_bytes(data[2*i:2*(i+1)], byteorder='big')
@@ -149,12 +171,14 @@ def read_tRNS(file_png, out_file, length, color_type):
             r, g, b = struct.unpack("!HHH", buffer)
             print("Transparent value (truecolor): r{} g{} b{}".format(r, g, b))
         case 3: # index-color
-            with open("palette.txt", "r") as palette, open("tRNSmap.txt", "w") as trns_map:
+            trans_map_name = "tRNSmap.txt"
+            with open("palette.txt", "r") as palette, open(trans_map_name, "w") as trns_map:
                 for i in range(length):
-                    bt = file_png.read(1)
-                    out_file.write(bt)
+                    alpha = file_png.read(1)
+                    out_file.write(alpha)
                     plte_value = palette.readline()
-                    trns_map.write("{} - {}".format(int.from_bytes(bt, byteorder="big"), plte_value))
+                    trns_map.write("{} {}".format(int.from_bytes(alpha, byteorder="big"), plte_value))
+            print("Index-color color type, transparency map printed to {}".format(trans_map_name))
         case 4, 6: # greyscale with alpha, truecolour with alpha
             print("Transparency is already included in this color type.")
 
