@@ -46,7 +46,7 @@ def read_gAMA(file_png, out_file):
     print("Gamma value: {}".format(gamma/100000.0))
 
 
-def read_hIST1(file_png, out_file, length):
+def read_hIST1(file_png, out_file, length: int, histogram_list: list[int]):
     print("Block type: hIST")
     if length % 2 != 0:
         raise ValueError("faulty hIST chunk")
@@ -57,11 +57,12 @@ def read_hIST1(file_png, out_file, length):
     with open(hist_writefile, 'w') as file:
         for i in range(length // 2):
             buffer = file_png.read(2)
-            out_file.write(buffer)
             count = struct.unpack('!H', buffer)[0]
+            histogram_list.append(count)
+            out_file.write(buffer)
             file.write("{}\n".format(count)) # writes histogram count in human-readable format
 
-    print("entries: " + str(i+1))
+    print("Histogram entries: " + str(i+1))
     print("written to: {}".format(hist_writefile))
 
 

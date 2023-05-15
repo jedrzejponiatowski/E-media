@@ -8,9 +8,9 @@ from os.path import exists
 
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
-    # f - keep only critical chunks
+    # h - display histogram (if exists), f - test fourier
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "afi:o:s")
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shf")
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -20,6 +20,8 @@ def main():
     output_filename = ''
     anonymize = False
     show = False
+    show_hist = False
+    fourier = False
     for option, argument in opts:
         if option == "-a":
             anonymize = True
@@ -38,7 +40,10 @@ def main():
 
         elif option == "-s":
             show = True
-
+        elif option == "-h":
+            show_hist = True
+        elif option == "-f":
+            fourier = True
         else:
             print("Unrecognised option: {}".format(option))
             sys.exit()
@@ -46,9 +51,13 @@ def main():
 
     # Chunks to anonimize
     anon_chunks = [b'dSIG', b'eXIf', b'iTXt', b'tEXt', b'tIME', b'zTXt']
+    chunks_read = [] # written as binary strings (eg. b'dSIG')
+    palette = [] # format: [(1, 2, 3), (4, 5, 6)]
+    histogram = []
     width = 0
     height = 0
     color_type = 0
+
     # Open png in byte read mode (also the output file)
     try:
         with open(input_filename, 'rb') as file_png, open(output_filename, 'wb') as out_file:
@@ -81,7 +90,7 @@ def main():
                         case b'IHDR':
                             width, height, color_type = critical.read_IHDR(file_png, out_file)
                         case b'PLTE':
-                            critical.read_PLTE(file_png, out_file, length)
+                            critical.read_PLTE(file_png, out_file, length, palette)
                         case b'IDAT':
                             # instead of this if-else, add IDAT to the list of anonymisable chunks
                             # and update the anon functione
@@ -97,7 +106,13 @@ def main():
                         case b'gAMA':
                             ancillary.read_gAMA(file_png, out_file)
                         case b'hIST':
-                            ancillary.read_hIST2(file_png, out_file, length)
+                            if b'PLTE' not in chunks_read:
+                                print("Error: hIST chunk cannot exist without a PLTE chunk")
+                                sys.exit()
+                            elif length / 2 != len(palette):
+                                print("Invalid number of hIST chunk entries")
+                                sys.exit()
+                            ancillary.read_hIST1(file_png, out_file, length, histogram)
                         case b'tEXt':
                             ancillary.read_tEXt(file_png, out_file, length)
                         case b'zTXt':
@@ -105,10 +120,15 @@ def main():
                         case b'iTXt':
                             ancillary.read_iTXt(file_png, out_file, length)
                         case b'tRNS':
+                            if b'PLTE' not in chunks_read:
+                                print("Error: hIST chunk cannot exist without a PLTE chunk")
+                                sys.exit()
                             ancillary.read_tRNS(file_png, out_file, length, color_type)
                         case _:
                             ancillary.ignore(file_png, out_file, length, block_type.decode("utf-8"))
 
+                # add the recently read chunk to the list
+                chunks_read.append(block_type)
                 # Odczytaj sumę kontrolną bloku
                 crc = file_png.read(4)
                 out_file.write(crc)
@@ -120,6 +140,10 @@ def main():
     
     if show:
         display.display_image(input_filename)
+    if show_hist and (b'hIST' in chunks_read):
+        display.display_histogram(palette, histogram)
+    if fourier:
+        display.test_fourier(input_filename)
 
 def usage():
     print(10*"-" + "USAGE" + 10*"-")

@@ -4,6 +4,9 @@ added_chunks.png
 out.png
 palette
 palette.txt
+histogram
+histogram.txt
+out*.png
 testtext.txt
 png_large.png
 /__pycache__
