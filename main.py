@@ -5,12 +5,11 @@ import display
 import getopt, sys
 from os.path import exists
 
-
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
     # h - display histogram (if exists), f - test fourier
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shf")
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shf", ["help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -23,15 +22,11 @@ def main():
     show_hist = False
     fourier = False
     for option, argument in opts:
-        if option == "-a":
-            anonymize = True
-
-        elif option == "-i":
+        if option == "-i":
             if argument == '':
                 print("Input file not specified")
                 sys.exit()
             input_filename = argument
-
         elif option == "-o":
             if argument == '':
                 print("Output file not specified")
@@ -44,10 +39,15 @@ def main():
             show_hist = True
         elif option == "-f":
             fourier = True
+        elif option == "-a":
+            anonymize = True
+
+        elif option == "--help":
+            usage()
+            sys.exit()
         else:
             print("Unrecognised option: {}".format(option))
             sys.exit()
-
 
     # Chunks to anonimize
     anon_chunks = [b'dSIG', b'eXIf', b'iTXt', b'tEXt', b'tIME', b'zTXt']
@@ -62,21 +62,21 @@ def main():
     try:
         with open(input_filename, 'rb') as file_png, open(output_filename, 'wb') as out_file:
         
-            # Wczytaj pierwsze 8 bajtów nagłówka
+            # Read first 8 bytes of the header
             header = file_png.read(8)
-            # Sprawdź czy plik ma poprawny nagłówek PNG
+            # check if the header is correct
             if header[:8] != b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a':
                 raise ValueError('To nie jest plik PNG')
             out_file.write(header)
 
-            # Dekoduj kolejne bloki nagłówka
+            # Decode consecutive chunks
             iend_read = False
             while not iend_read:
-                # Wczytaj długość bloku
+                # Read chunk lenght
                 length_bytes = file_png.read(4)
                 length = int.from_bytes(length_bytes, byteorder='big') # decode length from bytes
                 out_file.write(length_bytes)
-                # Wczytaj typ bloku
+                # Read chunk type
                 block_type = file_png.read(4)
                 out_file.write(block_type)
 
@@ -93,7 +93,7 @@ def main():
                             critical.read_PLTE(file_png, out_file, length, palette)
                         case b'IDAT':
                             # instead of this if-else, add IDAT to the list of anonymisable chunks
-                            # and update the anon functione
+                            # and update the anon functions
                             # if anonymize:
                             #     critical.read_anon_IDAT(file_png, out_file, length)
                             # else:
@@ -106,6 +106,7 @@ def main():
                         case b'gAMA':
                             ancillary.read_gAMA(file_png, out_file)
                         case b'hIST':
+                            # hIST can only appear if PLTE exists
                             if b'PLTE' not in chunks_read:
                                 print("Error: hIST chunk cannot exist without a PLTE chunk")
                                 sys.exit()
@@ -120,6 +121,7 @@ def main():
                         case b'iTXt':
                             ancillary.read_iTXt(file_png, out_file, length)
                         case b'tRNS':
+                            # tRNS can only appear if PLTE exists
                             if b'PLTE' not in chunks_read:
                                 print("Error: hIST chunk cannot exist without a PLTE chunk")
                                 sys.exit()
@@ -129,7 +131,7 @@ def main():
 
                 # add the recently read chunk to the list
                 chunks_read.append(block_type)
-                # Odczytaj sumę kontrolną bloku
+                # Read chunk control sum
                 crc = file_png.read(4)
                 out_file.write(crc)
                 print("Control sum: {}".format(crc.hex()))
@@ -147,7 +149,16 @@ def main():
 
 def usage():
     print(10*"-" + "USAGE" + 10*"-")
-    print("python main.py -i input_file -o output_file [-s -a]")
+    print("python main.py <-i <infile>> <-o <outfile>> [-s] [-f] [-a] [-h]")
+    print("---Obligatory arguments:")
+    print("-i <infile> - input image file in the PNG format")
+    print("-o <outfile> - output image filename")
+    print("---Optional arguments:")
+    print("-s - display image, grayscale, magnitude and phase")
+    print("-f - display fourier transform test")
+    print("-a - anonymize infile contents")
+    print("-h - show histogram")
     print(10*"-" + "USAGE" + 10*"-")
+
 if __name__ == "__main__":
     main()

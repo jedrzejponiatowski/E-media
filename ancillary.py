@@ -1,15 +1,18 @@
 import struct
 import zlib
+from io import BufferedReader, BufferedWriter
 
 
-def anon(file_png, out_file, length, chunk_type):
+def anon(file_png: BufferedReader, out_file: BufferedWriter, length: int, chunk_type: str):
     print("Block type: {}".format(chunk_type))
+
     
     match chunk_type:
         # in order to read an anonymized tEXt chunk, the anonymization must perserve
         # its null separator byte - if we just cleared the whole chunk, the parser would not know how to read
         # it since it would be missing the null separator chunk. There are multiple chunks that require a null
         # terminator byte to work, so beware
+
         case 'tEXt':
             data = file_png.read(length)            
             null_byte_pos = data.index(b'\x00')
@@ -23,14 +26,14 @@ def anon(file_png, out_file, length, chunk_type):
     print("ANONYMIZED")
 
 
-def ignore(file_png, out_file, length, block_type):
+def ignore(file_png: BufferedReader, out_file: BufferedWriter, length: int, block_type: str):
     print("Block type: {}".format(block_type))
     print("IGNORING")
     buffer = file_png.read(length)
     out_file.write(buffer)
 
 
-def read_tIME(file_png, out_file):
+def read_tIME(file_png: BufferedReader, out_file: BufferedWriter):
     print("Block type: tIME")
     buffer = file_png.read(7)
     out_file.write(buffer)
@@ -38,7 +41,7 @@ def read_tIME(file_png, out_file):
     print("Last modified: {}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(year, month, day, hour, minute, second))
     
 
-def read_gAMA(file_png, out_file):
+def read_gAMA(file_png: BufferedReader, out_file: BufferedWriter):
     print("Block type: gAMA")
     buffer = file_png.read(4)
     out_file.write(buffer)
@@ -46,7 +49,7 @@ def read_gAMA(file_png, out_file):
     print("Gamma value: {}".format(gamma/100000.0))
 
 
-def read_hIST1(file_png, out_file, length: int, histogram_list: list[int]):
+def read_hIST1(file_png: BufferedReader, out_file: BufferedWriter, length: int, histogram_list: list[int]):
     print("Block type: hIST")
     if length % 2 != 0:
         raise ValueError("faulty hIST chunk")
@@ -66,7 +69,7 @@ def read_hIST1(file_png, out_file, length: int, histogram_list: list[int]):
     print("written to: {}".format(hist_writefile))
 
 
-def read_hIST2(file_png, out_file, length):
+def read_hIST2(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: hIST")
     data = file_png.read(length)
     out_file.write(data)
@@ -81,7 +84,7 @@ def read_hIST2(file_png, out_file, length):
     print("Histogram entries:", entries)
 
 
-def read_tEXt(file_png, out_file, length):
+def read_tEXt(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: tEXt")
     data = file_png.read(length)
     out_file.write(data)
@@ -92,7 +95,7 @@ def read_tEXt(file_png, out_file, length):
     print(key + ": " + value)
 
 
-def read_zTXt(file_png, out_file, length):
+def read_zTXt(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: zTXt")
     data = file_png.read(length)
     out_file.write(data)
@@ -113,7 +116,7 @@ def read_zTXt(file_png, out_file, length):
     print(key + ": " + value)
 
 
-def read_iTXt(file_png, out_file, length):
+def read_iTXt(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: iTXt")
     data = file_png.read(length)
     out_file.write(data)
@@ -156,7 +159,7 @@ def read_iTXt(file_png, out_file, length):
     print("Text: " + text)
 
 
-def read_tRNS(file_png, out_file, length, color_type):
+def read_tRNS(file_png: BufferedReader, out_file: BufferedWriter, length: int, color_type: int):
     print("Block type: tRNS")
     buffer = []
     match color_type:
@@ -172,7 +175,7 @@ def read_tRNS(file_png, out_file, length, color_type):
             r, g, b = struct.unpack("!HHH", buffer)
             print("Transparent value (truecolor): r{} g{} b{}".format(r, g, b))
         case 3: # index-color
-            trans_map_name = "tRNSmap.txt"
+            trans_map_name = "tRNSmap"
             with open("palette.txt", "r") as palette, open(trans_map_name, "w") as trns_map:
                 for i in range(length):
                     alpha = file_png.read(1)

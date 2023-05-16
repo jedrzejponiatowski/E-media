@@ -2,25 +2,28 @@ import cv2 as cv
 from matplotlib import pyplot as plt
 import matplotlib.image as mpimg 
 import numpy as np
-import math
+import math, cmath
 
 def display_image(input_filename):
     img_gray = cv.imread(input_filename, cv.IMREAD_GRAYSCALE)
-    # img = cv.imread(input_filename)
     img = mpimg.imread(input_filename)
 
     dft1 = cv.dft(np.float32(img_gray), flags=cv.DFT_COMPLEX_OUTPUT)
     dft_shift1 = np.fft.fftshift(dft1)
     magnitude_spectrum1 = 20 * np.log(cv.magnitude(dft_shift1[:, :, 0] + 1e-10, dft_shift1[:, :, 1] + 1e-10))
-
-    plt.subplot(131), plt.imshow(img)
+    phase_spectrum1 = cv.phase(dft_shift1[:, :, 0], dft_shift1[:, :, 1])
+    
+    plt.subplot(221), plt.imshow(img)
     plt.title('Original image'), plt.xticks([]), plt.yticks([])
 
-    plt.subplot(132), plt.imshow(img_gray, cmap="gray")
+    plt.subplot(222), plt.imshow(img_gray, cmap="gray")
     plt.title('Grayscale image'), plt.xticks([]), plt.yticks([])
 
-    plt.subplot(133), plt.imshow(magnitude_spectrum1, cmap='gray')
-    plt.title('Magnitude spectrum'), plt.xticks([]), plt.yticks([])
+    plt.subplot(223), plt.imshow(magnitude_spectrum1, cmap='gray')
+    plt.title('Magnitude spectrum (log scale)'), plt.xticks([]), plt.yticks([])
+
+    plt.subplot(224), plt.imshow(phase_spectrum1, cmap="gray")
+    plt.title('Phase spectrum'), plt.xticks([]), plt.yticks([])
 
     plt.show()
     cv.waitKey(0)
@@ -75,7 +78,6 @@ def display_histogram(palette: list[int], histogram: list[int]):
     Y = []
     for rgb in palette:
         Y.append(math.floor(0.299*rgb[0] + 0.587*rgb[1] + 0.114*rgb[2]))
-    pal_len = len(palette)
     plt.bar(Y, height=histogram)
     plt.title("Image histogram")
     plt.show()
