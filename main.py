@@ -1,16 +1,20 @@
 import critical
 import ancillary
 import display
-from crypto import generate_keys
 #import transform
 import getopt, sys
 from os.path import exists
+import os
+import pickle
+from RSA import *
+from keys import *
+from crypto import *
 
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
     # h - display histogram (if exists), f - test fourier
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shfc", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shfed", ["help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -22,7 +26,8 @@ def main():
     show = False
     show_hist = False
     fourier = False
-    crypto = False
+    encrypt = False
+    decrypt = False
     for option, argument in opts:
         if option == "-i":
             if argument == '':
@@ -43,9 +48,24 @@ def main():
             fourier = True
         elif option == "-a":
             anonymize = True
-        elif option == "-c":
-            crypto = True
-            public_key, private_key = generate_keys(50)
+        elif option == "-e":
+            encrypt = True
+            public_key, private_key = generate_keys(20)
+            print(public_key)
+            print(private_key)
+            save_public_key(public_key)
+            save_private_key(private_key)
+
+
+        elif option == "-d":
+            decrypt = True
+            public_key = load_public_key()
+            private_key = load_private_key()
+            print(public_key)
+            print(private_key)
+
+
+
 
         elif option == "--help":
             usage()
@@ -80,10 +100,12 @@ def main():
                 # Read chunk lenght
                 length_bytes = file_png.read(4)
                 length = int.from_bytes(length_bytes, byteorder='big') # decode length from bytes
-                out_file.write(length_bytes)
+                
                 # Read chunk type
                 block_type = file_png.read(4)
-                out_file.write(block_type)
+                if block_type != b'IDAT':
+                    out_file.write(length_bytes)
+                    out_file.write(block_type)
 
                 # a previously anonymized block will not be read because it was first read in the if clause
                 # and the elif clause will then not be checked, since this is how if-elif works
@@ -102,9 +124,13 @@ def main():
                             # if anonymize:
                             #     critical.read_anon_IDAT(file_png, out_file, length)
                             # else:
-                            if crypto:
-                                critical.read_IDAT_crypto(file_png, out_file, length, public_key)
+                            if encrypt:
+                                critical.read_IDAT_encrypt(file_png, out_file, length, public_key)
+                            elif decrypt:
+                                critical.read_IDAT_decrypt(file_png, out_file, length, private_key)
                             else:
+                                out_file.write(length_bytes)
+                                out_file.write(block_type)
                                 critical.read_IDAT(file_png, out_file, length)
                         case b'IEND':
                             critical.read_IEND(file_png, out_file)
@@ -144,6 +170,9 @@ def main():
                 out_file.write(crc)
                 print("Control sum: {}".format(crc.hex()))
                 print(20*"-")
+
+            out_file.close()
+            file_png.close()
 
     except FileNotFoundError as err:
         print("File does not exist: {}".format(err.filename))

@@ -1,6 +1,8 @@
 import struct
 from io import BufferedWriter, BufferedReader
-from crypto import encrypt
+from crypto import *
+import base64
+from keys import *
 
 def read_IHDR(file_png: BufferedReader, out_file: BufferedWriter):
     buffer = []
@@ -70,16 +72,44 @@ def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     out_file.write(buffer)
     print("IDAT - continue")
 
-def read_IDAT_crypto(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple):
-    print("Block type: IDAT (crypto)")
+def read_IDAT_encrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple):
+    print("Block type: IDAT (encrypt)")
     buffer = file_png.read(length)
 
-    # Szyfrowanie danych bloku IDAT
-    for byte in buffer:
-        encrypted_byte = encrypt(byte, public_key)
-        encrypted_byte_str = str(encrypted_byte)
-        encrypted_byte_bytes = encrypted_byte_str.encode()  # Konwersja na bajty
-        out_file.write(encrypted_byte_bytes)
+    image64 = base64.b64encode(buffer).decode()
+    encrypted = encryptLargeFile(image64, public_key)
+    print(length)
+    print(len(buffer))
+    print(len(encrypted))
+    print(type(buffer))
+    print(type(encrypted))
+
+    encrypted_bytes = encrypted.encode()
+    print(type(encrypted_bytes))
+    print(len(encrypted_bytes))
+    encrypt_len = len(encrypted_bytes)
+    out_file.write(encrypt_len.to_bytes(4, byteorder='big'))
+    out_file.write(b'IDAT')
+    out_file.write(encrypted_bytes)
+    #out_file.write(buffer)
+
+
+    print("IDAT - continue")
+
+
+def read_IDAT_decrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, private_key: tuple):
+    print("Block type: IDAT (decrypt)")
+
+    buffer = file_png.read(length)
+    print("new size:: " + str(length))
+
+    decryptedVal = decryptLargeFile(buffer, private_key)
+    decryptedBytes = base64.b64decode(decryptedVal)
+
+    decrypt_len = len(decryptedBytes)
+    out_file.write(decrypt_len.to_bytes(4, byteorder='big'))
+    out_file.write(b'IDAT')
+    out_file.write(decryptedBytes)
 
     print("IDAT - continue")
 
