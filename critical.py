@@ -1,7 +1,7 @@
 import struct
-from crypto import encrypt
+from io import BufferedWriter, BufferedReader
 
-def read_IHDR(file_png, out_file):
+def read_IHDR(file_png: BufferedReader, out_file: BufferedWriter):
     buffer = []
     width = 0
     height = 0
@@ -42,51 +42,31 @@ def read_IHDR(file_png, out_file):
 
     return width, height, color_type
 
-    #print(20*"-")
-
-def read_PLTE(file_png, out_file, length):
+def read_PLTE(file_png: BufferedReader, out_file: BufferedWriter, length: int, palette_list: list[int]):
     print("Block type: PLTE")
     if length % 3 != 0:
         raise ValueError("faulty PLTE chunk")
 
     print("PLTE block length: " + str(length) )
 
-    plte_writefile = "palette.txt"
+    plte_writefile = "palette"
     with open(plte_writefile, 'w') as file:
         for i in range(length // 3):
             buffer = file_png.read(3)
             r, g, b = struct.unpack('!BBB', buffer)
+            palette_list.append( (r, g, b) )
             file.write("{} {} {}\n".format(r, g, b)) # writes palette in human-readable format
             out_file.write(buffer)
 
     print("entries: " + str(i+1))
     print("written to: {}".format(plte_writefile))
-    #print(20*'-')
-
-    # zapisz palete do oddzelnego pliku - za duze zeby wyswietlac
     
 
-def read_IDAT(file_png, out_file, length):
+def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: IDAT")
     # data = int.from_bytes(file_png.read(length), byteorder='big')
     buffer = file_png.read(length)
-    
     out_file.write(buffer)
-    print("IDAT - continue")
-    # print(20*"-")
-
-
-def read_IDAT_crypto(file_png, out_file, length, public_key):
-    print("Block type: IDAT (crypto)")
-    buffer = file_png.read(length)
-
-    # Szyfrowanie danych bloku IDAT
-    for byte in buffer:
-        encrypted_byte = encrypt(byte, public_key)
-        #out_file.write(encrypted_byte.to_bytes(1, 'big') + b" ")  # Konwertowanie zaszyfrowanego bajtu na bufor bajtów
-        out_file.write(encrypted_byte)
-        print(encrypted_byte)
-
     print("IDAT - continue")
 
 # when anonymization is True, glue together consecutive IDAT chunks
@@ -99,7 +79,8 @@ def read_IDAT_crypto(file_png, out_file, length, public_key):
 # Do this: scan the infile to add up all IDAT lengths, seek() to the position before the scan, plop
 # down the total IDAT length, read IDAT data.
 # CURRENTLY DOES NOT WORK - messed up tracking read bytes
-def read_anon_IDAT(file_png, out_file, length):
+# It does not work because you need to play with compresion/decompression first. Thats kinda how IDAT works
+def read_anon_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     print("Block type: IDAT")
     print("anon is true - IDAT concatenation")
     total_lengh = length # sum of all IDAT lengths
@@ -126,6 +107,8 @@ def read_anon_IDAT(file_png, out_file, length):
     # since we already written the length of the chunk and its type before we even started this command
     # we first need to update the chunk length to match teh total length of all consecutive IDATs.
     # length + type will always have the total length of 8 bytes
+    # just moving the cursor with seek() may NOT work since there will be data after the cursor.
+    # We are just moving it, we are not removing any data in the process
     out_file.seek(-8, 1)
     out_file.write(str(total_lengh).encode("utf-8"))
     out_file.write('IDAT'.encode("utf-8"))
@@ -146,5 +129,5 @@ def read_anon_IDAT(file_png, out_file, length):
             out_file.write(buffer)
 
 
-def read_IEND(file_png, out_file):
+def read_IEND(file_png: BufferedReader, out_file: BufferedWriter):
     print("Block type: IEND")

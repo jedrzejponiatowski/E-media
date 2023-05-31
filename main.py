@@ -1,18 +1,15 @@
 import critical
 import ancillary
 import display
-from crypto import generate_keys, encrypt
 #import transform
 import getopt, sys
 from os.path import exists
 
-
-
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
-    # f - keep only critical chunks, c = crypto
+    # h - display histogram (if exists), f - test fourier
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "afi:o:s:c")
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shf", ["help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -22,17 +19,14 @@ def main():
     output_filename = ''
     anonymize = False
     show = False
-    crypto = False
+    show_hist = False
+    fourier = False
     for option, argument in opts:
-        if option == "-a":
-            anonymize = True
-
-        elif option == "-i":
+        if option == "-i":
             if argument == '':
                 print("Input file not specified")
                 sys.exit()
             input_filename = argument
-
         elif option == "-o":
             if argument == '':
                 print("Output file not specified")
@@ -41,41 +35,48 @@ def main():
 
         elif option == "-s":
             show = True
+        elif option == "-h":
+            show_hist = True
+        elif option == "-f":
+            fourier = True
+        elif option == "-a":
+            anonymize = True
 
-        elif option == "-c":
-            crypto = True
-            key_size = 8  # Rozmiar klucza
-            public_key, private_key = generate_keys(key_size)
-            
+        elif option == "--help":
+            usage()
+            sys.exit()
         else:
             print("Unrecognised option: {}".format(option))
             sys.exit()
 
-
     # Chunks to anonimize
     anon_chunks = [b'dSIG', b'eXIf', b'iTXt', b'tEXt', b'tIME', b'zTXt']
+    chunks_read = [] # written as binary strings (eg. b'dSIG')
+    palette = [] # format: [(1, 2, 3), (4, 5, 6)]
+    histogram = []
     width = 0
     height = 0
     color_type = 0
+
     # Open png in byte read mode (also the output file)
     try:
         with open(input_filename, 'rb') as file_png, open(output_filename, 'wb') as out_file:
         
-            # Wczytaj pierwsze 8 bajtów nagłówka
+            # Read first 8 bytes of the header
             header = file_png.read(8)
-            # Sprawdź czy plik ma poprawny nagłówek PNG
+            # check if the header is correct
             if header[:8] != b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a':
                 raise ValueError('To nie jest plik PNG')
             out_file.write(header)
 
-            # Dekoduj kolejne bloki nagłówka
+            # Decode consecutive chunks
             iend_read = False
             while not iend_read:
-                # Wczytaj długość bloku
+                # Read chunk lenght
                 length_bytes = file_png.read(4)
                 length = int.from_bytes(length_bytes, byteorder='big') # decode length from bytes
                 out_file.write(length_bytes)
-                # Wczytaj typ bloku
+                # Read chunk type
                 block_type = file_png.read(4)
                 out_file.write(block_type)
 
@@ -89,17 +90,14 @@ def main():
                         case b'IHDR':
                             width, height, color_type = critical.read_IHDR(file_png, out_file)
                         case b'PLTE':
-                            critical.read_PLTE(file_png, out_file, length)
+                            critical.read_PLTE(file_png, out_file, length, palette)
                         case b'IDAT':
                             # instead of this if-else, add IDAT to the list of anonymisable chunks
-                            # and update the anon functione
+                            # and update the anon functions
                             # if anonymize:
                             #     critical.read_anon_IDAT(file_png, out_file, length)
                             # else:
-                            if crypto:
-                                critical.read_IDAT_crypto(file_png, out_file, length, public_key)
-                            else:                         
-                                critical.read_IDAT(file_png, out_file, length)
+                            critical.read_IDAT(file_png, out_file, length)
                         case b'IEND':
                             critical.read_IEND(file_png, out_file)
                             iend_read = True
@@ -108,7 +106,14 @@ def main():
                         case b'gAMA':
                             ancillary.read_gAMA(file_png, out_file)
                         case b'hIST':
-                            ancillary.read_hIST2(file_png, out_file, length)
+                            # hIST can only appear if PLTE exists
+                            if b'PLTE' not in chunks_read:
+                                print("Error: hIST chunk cannot exist without a PLTE chunk")
+                                sys.exit()
+                            elif length / 2 != len(palette):
+                                print("Invalid number of hIST chunk entries")
+                                sys.exit()
+                            ancillary.read_hIST1(file_png, out_file, length, histogram)
                         case b'tEXt':
                             ancillary.read_tEXt(file_png, out_file, length)
                         case b'zTXt':
@@ -116,26 +121,44 @@ def main():
                         case b'iTXt':
                             ancillary.read_iTXt(file_png, out_file, length)
                         case b'tRNS':
+                            # tRNS can only appear if PLTE exists
+                            if b'PLTE' not in chunks_read:
+                                print("Error: hIST chunk cannot exist without a PLTE chunk")
+                                sys.exit()
                             ancillary.read_tRNS(file_png, out_file, length, color_type)
                         case _:
                             ancillary.ignore(file_png, out_file, length, block_type.decode("utf-8"))
 
-                # Odczytaj sumę kontrolną bloku
+                # add the recently read chunk to the list
+                chunks_read.append(block_type)
+                # Read chunk control sum
                 crc = file_png.read(4)
                 out_file.write(crc)
                 print("Control sum: {}".format(crc.hex()))
                 print(20*"-")
-            
 
     except FileNotFoundError as err:
         print("File does not exist: {}".format(err.filename))
     
     if show:
         display.display_image(input_filename)
+    if show_hist and (b'hIST' in chunks_read):
+        display.display_histogram(palette, histogram)
+    if fourier:
+        display.test_fourier(input_filename)
 
 def usage():
     print(10*"-" + "USAGE" + 10*"-")
-    print("python main.py -i input_file -o output_file [-s -a -c]")
+    print("python main.py <-i <infile>> <-o <outfile>> [-s] [-f] [-a] [-h]")
+    print("---Obligatory arguments:")
+    print("-i <infile> - input image file in the PNG format")
+    print("-o <outfile> - output image filename")
+    print("---Optional arguments:")
+    print("-s - display image, grayscale, magnitude and phase")
+    print("-f - display fourier transform test")
+    print("-a - anonymize infile contents")
+    print("-h - show histogram")
     print(10*"-" + "USAGE" + 10*"-")
+
 if __name__ == "__main__":
     main()
