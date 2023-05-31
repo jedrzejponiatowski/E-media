@@ -1,5 +1,6 @@
 import struct
 from io import BufferedWriter, BufferedReader
+from crypto import encrypt
 
 def read_IHDR(file_png: BufferedReader, out_file: BufferedWriter):
     buffer = []
@@ -68,6 +69,22 @@ def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int):
     buffer = file_png.read(length)
     out_file.write(buffer)
     print("IDAT - continue")
+
+def read_IDAT_crypto(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple):
+    print("Block type: IDAT (crypto)")
+    buffer = file_png.read(length)
+
+    # Szyfrowanie danych bloku IDAT
+    for byte in buffer:
+        encrypted_byte = encrypt(byte, public_key)
+        encrypted_byte_str = str(encrypted_byte)
+        encrypted_byte_bytes = encrypted_byte_str.encode()  # Konwersja na bajty
+        out_file.write(encrypted_byte_bytes)
+
+    print("IDAT - continue")
+
+
+
 
 # when anonymization is True, glue together consecutive IDAT chunks
 # problem - gluing IDAT chunks increases chunk size.

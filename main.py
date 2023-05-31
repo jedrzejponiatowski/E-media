@@ -1,6 +1,7 @@
 import critical
 import ancillary
 import display
+from crypto import generate_keys
 #import transform
 import getopt, sys
 from os.path import exists
@@ -9,7 +10,7 @@ def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
     # h - display histogram (if exists), f - test fourier
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shf", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shfc", ["help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -21,6 +22,7 @@ def main():
     show = False
     show_hist = False
     fourier = False
+    crypto = False
     for option, argument in opts:
         if option == "-i":
             if argument == '':
@@ -41,6 +43,9 @@ def main():
             fourier = True
         elif option == "-a":
             anonymize = True
+        elif option == "-c":
+            crypto = True
+            public_key, private_key = generate_keys(50)
 
         elif option == "--help":
             usage()
@@ -97,7 +102,10 @@ def main():
                             # if anonymize:
                             #     critical.read_anon_IDAT(file_png, out_file, length)
                             # else:
-                            critical.read_IDAT(file_png, out_file, length)
+                            if crypto:
+                                critical.read_IDAT_crypto(file_png, out_file, length, public_key)
+                            else:
+                                critical.read_IDAT(file_png, out_file, length)
                         case b'IEND':
                             critical.read_IEND(file_png, out_file)
                             iend_read = True
