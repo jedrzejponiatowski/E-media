@@ -1,4 +1,5 @@
 import struct
+import zlib
 from io import BufferedWriter, BufferedReader
 from crypto import *
 import base64
@@ -65,11 +66,29 @@ def read_PLTE(file_png: BufferedReader, out_file: BufferedWriter, length: int, p
     print("written to: {}".format(plte_writefile))
     
 
-def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int):
+def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int, de_comp: bool):
     print("Block type: IDAT")
-    # data = int.from_bytes(file_png.read(length), byteorder='big')
-    buffer = file_png.read(length)
-    out_file.write(buffer)
+    
+    # bytes object is immutable.
+    first_byte = file_png.read(1)
+    the_rest = file_png.read(length-1)
+    data = first_byte + the_rest # i know how this looks, but bytes objects are immutable, so i gotta make do for now
+    if de_comp:
+        # new_content = bytes()
+        if first_byte == b'\x78': # the file is zlib-compressed
+            print("Decompressing...")
+            data = zlib.decompress(data) # only keep this in the if-elif
+
+        else: # the file is not zlib-compressed
+            print("Compressing...")
+            data = zlib.compress(data) # default compression level = 6
+            
+        out_file.write(len(data).to_bytes(4, byteorder="big"))
+    else:
+        out_file.write(length.to_bytes(4, byteorder="big"))
+        
+    out_file.write(b'IDAT')
+    out_file.write(data)
     print("IDAT - continue")
 
 def read_IDAT_encrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple):

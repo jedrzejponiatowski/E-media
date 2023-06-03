@@ -9,12 +9,14 @@ import pickle
 from RSA import *
 from keys import *
 from crypto import *
+import struct
 
 def main():
     # shortopts: a - anonymize, i - input file, o - output file, s - show image and spectrum
-    # h - display histogram (if exists), f - test fourier
+    # h - display histogram (if exists), f - test fourier, e - encrypt, d - decrypt
+    # --cd - compress if decompressed, decompress if compressed
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shfed", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "ai:o:shfed", ["help", "cd"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -28,6 +30,7 @@ def main():
     fourier = False
     encrypt = False
     decrypt = False
+    de_comp = False # will decomp a compressed file and compress a decompressed file.
     for option, argument in opts:
         if option == "-i":
             if argument == '':
@@ -50,28 +53,30 @@ def main():
             anonymize = True
         elif option == "-e":
             encrypt = True
+            de_comp = False # encryption and compression are made mutually exclusive to avoid any conflicts
             public_key, private_key = generate_keys(20)
             print(public_key)
             print(private_key)
             save_public_key(public_key)
             save_private_key(private_key)
-
-
         elif option == "-d":
             decrypt = True
             public_key = load_public_key()
             private_key = load_private_key()
             print(public_key)
             print(private_key)
-
-
-
-
+            
         elif option == "--help":
             usage()
             sys.exit()
+        elif option == "--cd":
+            de_comp = True
+            encrypt = False
+            decrypt = False    
+        
         else:
             print("Unrecognised option: {}".format(option))
+            usage()
             sys.exit()
 
     # Chunks to anonimize
@@ -119,19 +124,12 @@ def main():
                         case b'PLTE':
                             critical.read_PLTE(file_png, out_file, length, palette)
                         case b'IDAT':
-                            # instead of this if-else, add IDAT to the list of anonymisable chunks
-                            # and update the anon functions
-                            # if anonymize:
-                            #     critical.read_anon_IDAT(file_png, out_file, length)
-                            # else:
                             if encrypt:
                                 critical.read_IDAT_encrypt(file_png, out_file, length, public_key)
                             elif decrypt:
                                 critical.read_IDAT_decrypt(file_png, out_file, length, private_key)
                             else:
-                                out_file.write(length_bytes)
-                                out_file.write(block_type)
-                                critical.read_IDAT(file_png, out_file, length)
+                                critical.read_IDAT(file_png, out_file, length, de_comp)
                         case b'IEND':
                             critical.read_IEND(file_png, out_file)
                             iend_read = True
@@ -186,7 +184,7 @@ def main():
 
 def usage():
     print(10*"-" + "USAGE" + 10*"-")
-    print("python main.py <-i <infile>> <-o <outfile>> [-s] [-f] [-a] [-h]")
+    print("python main.py <-i <infile>> <-o <outfile>> [-o] [--option]")
     print("---Obligatory arguments:")
     print("-i <infile> - input image file in the PNG format")
     print("-o <outfile> - output image filename")
@@ -195,6 +193,11 @@ def usage():
     print("-f - display fourier transform test")
     print("-a - anonymize infile contents")
     print("-h - show histogram")
+    print("-e - encrypt")
+    print("-d - decrypt")
+    print("--cd - compress/decompress")
+    print("en/decription and de/compression are mutually exclusive - the latter option will override the former")
+    print("--help")
     print(10*"-" + "USAGE" + 10*"-")
 
 if __name__ == "__main__":
