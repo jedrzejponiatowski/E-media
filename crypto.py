@@ -1,9 +1,15 @@
 
 import math
 import sys
+import string
+import random
 
 def getMaxBitsDataSize(key):
-    return len(str(key[1])) - 3
+    modulus_len = len(str(bin(key[1])))
+    size = math.floor(math.log2(modulus_len))
+    # print("getMaxBitsDataSize size: " + str(size))
+    return size
+    # return len(str(key[1])) - 3
 
 def asciiToText(msg):
     length, size = len(msg), 3
@@ -32,31 +38,36 @@ def decrypt(cipher, privateKey):
 
 
 
-
+# in encryptLargeFile gets passed the entire bytemass. Every byte is converted to ASCII values
+# so 'abc' gets translated into '097098099' 
 def msgToAsciiValue(msg):
     return ''.join(str(ord(c)).zfill(3) for c in msg)
 
+# in encryptLargeFile gets passed the entire bytemass and some wierd int.
+# devides the ASCII-converted message and converts them into blocks of length "size"
 def splitToBlocks(asciiMsg, size):
     length = len(asciiMsg)
-    blocks = [ asciiMsg[i:i+size].ljust(size, '0') for i in range(0, length, size)]
+    blocks = [ asciiMsg[i:i+size].ljust(size, '0') for i in range(0, length, size)] # why ljust()?
+    # since the size of the block can differ from 3, which is the size of one "charactre" output by msgtoAsciiValue
+    # we need to pad it with non-invasive characters. Say we got 097 as the first char from msgToAscii, but size==2.
+    # our first block would be "09"
     return blocks
 
-def encryptBlock(block, publicKey):
+def encryptBlock(block, publicKey): # each block consists of ASCII values.
     val = pow(block, publicKey[0], publicKey[1])
     return val
 
 def encryptBlockMessage(blocks, publicKey):
     return ''.join(str(encryptBlock(int(block), publicKey)) + '\n' for block in blocks).rstrip('\n')
 
-def encryptLargeFile(msg, publicKey):
-    
-    bits = getMaxBitsDataSize(publicKey)
-    asciiMsg = msgToAsciiValue(msg)
-    blocks = splitToBlocks(asciiMsg, bits)
+
+def encryptLargeFileECB(msg, publicKey): # msg here is in utf8 characters
+    bits = getMaxBitsDataSize(publicKey) # ??? - gets the size of one block
+    asciiMsg = msgToAsciiValue(msg) # convert the bytemass to ASCII values (not chars, but their corresponding codes)
+    blocks = splitToBlocks(asciiMsg, bits) # each block is rather sort, like 2-3 chars
+
     encryptedMsg = encryptBlockMessage(blocks, publicKey)
     return encryptedMsg
-
-
 
 
 def decryptBlock(block, privateKey):
@@ -83,7 +94,7 @@ def decryptLargeFile(msg, privateKey):
     return text
 """
 
-def decryptLargeFile(msg, privateKey):
+def decryptLargeFileECB(msg, privateKey):
     blocks = msg.split(b'\n')  # Podział na bloki za pomocą bytes
     decryptedMsg = decryptBlockMessage(blocks, privateKey)
     text = asciiToText(decryptedMsg)

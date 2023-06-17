@@ -2,8 +2,10 @@ import struct
 import zlib
 from io import BufferedWriter, BufferedReader
 from crypto import *
+from cryptoCBC import *
 import base64
 from keys import *
+
 
 def read_IHDR(file_png: BufferedReader, out_file: BufferedWriter):
     buffer = []
@@ -91,38 +93,51 @@ def read_IDAT(file_png: BufferedReader, out_file: BufferedWriter, length: int, d
     out_file.write(data)
     print("IDAT - continue")
 
-def read_IDAT_encrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple):
+def read_IDAT_encrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, public_key: tuple, mode: str):
     print("Block type: IDAT (encrypt)")
-    buffer = file_png.read(length)
-
-    image64 = base64.b64encode(buffer).decode()
-    encrypted = encryptLargeFile(image64, public_key)
-    print(length)
-    print(len(buffer))
-    print(len(encrypted))
-    print(type(buffer))
-    print(type(encrypted))
+    buffer = file_png.read(length) # read byte-mass into buffer
+    image64 = ''
+    encrypted = ''
+    # takes in binary, converts to utf8 bytes, and then decodes to utf8 chars.
+    image64 = base64.b64encode(buffer).decode() 
+    match mode:
+        case 'ecb':
+            encrypted = encryptLargeFileECB(image64, public_key) # later, utf8_chars -> utf8_values
+        case 'cbc':
+            encrypted = encryptLargeFileCBC(image64, public_key)
+        case _:
+            raise ValueError("This encoding mode does not exist: {mode}")  
+        
+    # print(length)
+    # print(len(buffer))
+    # print(len(encrypted))
+    # print(type(buffer))
+    # print(type(encrypted))
 
     encrypted_bytes = encrypted.encode()
-    print(type(encrypted_bytes))
-    print(len(encrypted_bytes))
+    # print(type(encrypted_bytes))
+    # print(len(encrypted_bytes))
     encrypt_len = len(encrypted_bytes)
+    
     out_file.write(encrypt_len.to_bytes(4, byteorder='big'))
     out_file.write(b'IDAT')
     out_file.write(encrypted_bytes)
-    #out_file.write(buffer)
-
-
     print("IDAT - continue")
 
 
-def read_IDAT_decrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, private_key: tuple):
+def read_IDAT_decrypt(file_png: BufferedReader, out_file: BufferedWriter, length: int, private_key: tuple, mode: str):
     print("Block type: IDAT (decrypt)")
 
     buffer = file_png.read(length)
     print("new size:: " + str(length))
+    decryptedVal = ''
 
-    decryptedVal = decryptLargeFile(buffer, private_key)
+    match mode:
+        case 'ecb':
+            decryptedVal = decryptLargeFileECB(buffer, private_key)
+        case 'cbc':
+            decryptedVal = decryptLargeFileCBC(buffer, private_key)
+            
     decryptedBytes = base64.b64decode(decryptedVal)
 
     decrypt_len = len(decryptedBytes)

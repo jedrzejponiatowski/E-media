@@ -53,19 +53,14 @@ def main():
             anonymize = True
         elif option == "-e":
             encrypt = True
+            decrypt = False
             de_comp = False # encryption and compression are made mutually exclusive to avoid any conflicts
-            public_key, private_key = generate_keys(20)
-            print(public_key)
-            print(private_key)
-            save_public_key(public_key)
-            save_private_key(private_key)
+
         elif option == "-d":
             decrypt = True
-            public_key = load_public_key()
-            private_key = load_private_key()
-            print(public_key)
-            print(private_key)
-            
+            encrypt = False
+            de_comp = False
+
         elif option == "--help":
             usage()
             sys.exit()
@@ -87,7 +82,20 @@ def main():
     width = 0
     height = 0
     color_type = 0
-
+    
+    # setup encryption
+    if encrypt:
+        public_key, private_key = generate_keys(20)
+        print(public_key)
+        print(private_key)
+        save_public_key(public_key)
+        save_private_key(private_key)
+    elif decrypt:
+        public_key = load_public_key()
+        private_key = load_private_key()
+        print(public_key)
+        print(private_key)
+        
     # Open png in byte read mode (also the output file)
     try:
         with open(input_filename, 'rb') as file_png, open(output_filename, 'wb') as out_file:
@@ -125,9 +133,9 @@ def main():
                             critical.read_PLTE(file_png, out_file, length, palette)
                         case b'IDAT':
                             if encrypt:
-                                critical.read_IDAT_encrypt(file_png, out_file, length, public_key)
+                                critical.read_IDAT_encrypt(file_png, out_file, length, public_key, 'ecb') #HARDCODED !!!!!!!!!!!
                             elif decrypt:
-                                critical.read_IDAT_decrypt(file_png, out_file, length, private_key)
+                                critical.read_IDAT_decrypt(file_png, out_file, length, private_key, 'ecb')
                             else:
                                 critical.read_IDAT(file_png, out_file, length, de_comp)
                         case b'IEND':
@@ -195,6 +203,7 @@ def usage():
     print("-h - show histogram")
     print("-e - encrypt")
     print("-d - decrypt")
+    print("both enctiption options are mutually exclusive - the latter option will override the former")
     print("--cd - compress/decompress")
     print("en/decription and de/compression are mutually exclusive - the latter option will override the former")
     print("--help")

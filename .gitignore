@@ -1,4 +1,5 @@
 /Emedia_venv
+/Emedia_linux_venv
 testing.py
 added_chunks.png
 out.png
@@ -11,3 +12,4 @@ testtext.txt
 png_large.png
 /__pycache__
 tRNSmap.txt
+.vscode/
